@@ -7,6 +7,7 @@ from pyquery import PyQuery as pq
 
 #TODO learn how to program...
 #TODO Add classes for session and link
+#TODO can't import settings if it doesn't exist - pickle?
 
 #folder names, username etc.
 #TODO add better config file e.g. ConfigParser
@@ -127,6 +128,10 @@ class blurcast:
         self.pod_ids = pod_ids
 
 
+    def create_filename(self, fname):
+        filename = "".join([c for c in fname if c.isalnum() or c in (' ','_','.')]).rstrip() 
+        return filename
+
     def set_links(self):
         """ Sets links to be a list of tuples of feed_id, story_id and
             podcast link for each unread podcast item.
@@ -142,18 +147,26 @@ class blurcast:
                 print "need to log in..."
 
             stories = f.json()['stories']
+            try:
+                feed_title = f.json()['feed_title']
+            except:
+                feed_title = ""
 
             for story in stories:
+                story_title = story['story_title']
+                filename = "%s - %s" % (feed_title, story_title)
                 dl_link = pq(story['story_content'])('source').attr.src
                 story_id = story['id']
-                links.append((pid, story_id, dl_link))
+                links.append((pid, story_id, dl_link, filename))
 
         self.links = links
         #return links
 
 
-    def download_link(self,link):
-        file_name = "%s/%s" % (PODCAST_DIR, link.split('/')[-1])
+    def download_link(self,link,filename=""):
+        if filename == "":
+            filename = link.split('/')[-1]
+        file_name = "%s/%s" % (PODCAST_DIR, filename)
         u = urllib2.urlopen(link)
         f = open(file_name, 'wb')
         meta = u.info()
@@ -188,12 +201,54 @@ class blurcast:
                 feed_id = data[0]
                 story_id = data[1]
                 link = data[2]
-                self.download_link(link)
+                filename = data[3]
+                self.download_link(link, filename)
                 self.mark_story_read(feed_id, story_id)
             self.links = []
 
         else:
             print "Nothing new to download."
+
+class podcast:
+
+    def __init__(self, feed_id, story_id, audio_link):
+        self.feed_id = feed_id
+        self.story_id = story_id
+        self.link = audio_link
+
+    def mark_read(self, cookies):
+        r = requests.post("%s/reader/mark_story_as_read" % BASE_URL,
+                          params={'feed_id': self.feed_id,
+                                  'story_id': self.story_id},
+                          cookies=cookies)
+        print "%s marked read...\n\n" % story_id
+
+    def download(self):
+        file_name = "%s/%s" % (PODCAST_DIR, self.link.split('/')[-1])
+        u = urllib2.urlopen(self.link)
+        f = open(file_name, 'wb')
+        meta = u.info()
+        file_size = int(meta.getheaders("Content-Length")[0])
+        print "Downloading: %s Bytes: %s" % (file_name, file_size)
+
+        file_size_dl = 0
+        block_sz = 8192
+        while True:
+            buffer = u.read(block_sz)
+            if not buffer:
+                break
+
+            file_size_dl += len(buffer)
+            f.write(buffer)
+            status = r"[%3.2f%%]" % (file_size_dl * 100./file_size)
+            status = status + chr(8)*(len(status)+1)
+            print status,
+
+        f.close()
+
+    def process(self, cookies):
+        self.download()
+        self.mark_read(cookies)
 
 if __name__ == "__main__":
     podcatcher = blurcast()

@@ -1,0 +1,11 @@
+argparse==1.2.1
+cssselect==0.8
+flake8==2.0
+ipython==0.13.2
+lxml==3.2.1
+mccabe==0.2.1
+pep8==1.4.5
+pyflakes==0.7.2
+pyquery==1.2.4
+requests==1.2.3
+wsgiref==0.1.2
