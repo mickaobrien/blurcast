@@ -6,6 +6,7 @@ import getpass
 from pyquery import PyQuery as pq
 
 #TODO learn how to program...
+#TODO Add classes for session and link
 
 #folder names, username etc.
 #TODO add better config file e.g. ConfigParser
@@ -20,7 +21,7 @@ class blurcast:
             self.create_settings()
         
         self.set_cookies()
-        self.get_new_podcasts()
+        #self.get_new_podcasts()
 
     def get_new_podcasts(self):
         if not hasattr(self, 'pod_ids'):
@@ -36,9 +37,9 @@ class blurcast:
         folder = raw_input("NewsBlur folder containing podcasts: ")
         save_dir = raw_input("Directory to save podcasts: ")
         with open("settings.py", "w+") as f:
-            f.write("USERNAME = %s\n" % username)
-            f.write("FOLDER = %s\n" % folder)
-            f.write("PODCAST_DIR = %s" % save_dir)
+            f.write('USERNAME = "%s"\n' % username)
+            f.write('FOLDER = "%s"\n' % folder)
+            f.write('PODCAST_DIR = "%s"' % save_dir)
             f.close()
         return
 
@@ -49,6 +50,7 @@ class blurcast:
         #TODO Fix this mess here.
         auth = {'username': USERNAME, 'password': password}
         r = requests.post("%s/api/login" % BASE_URL, data=auth)
+        print r.json()
         if not r.json()['authenticated']:
             print "There was an error logging in, try reentering your password."
             while not r.json()['authenticated']:
@@ -56,9 +58,9 @@ class blurcast:
                 auth = {'username': USERNAME, 'password': password}
                 r = requests.post("%s/api/login" % BASE_URL, data=auth)
 
-            print "logged in!"
-            cookies = r.cookies.get_dict()
-            return cookies
+        print "logged in!"
+        cookies = r.cookies.get_dict()
+        return cookies
         #else:
             #print "no log in..."
             #return 0
@@ -104,10 +106,9 @@ class blurcast:
             if self.valid_session():
                 return
         
-        else:
-            cookies = self.get_session_id()
-            self.cookies = cookies
-            self.save_cookies()
+        cookies = self.get_session_id()
+        self.cookies = cookies
+        self.save_cookies()
 
 
 
@@ -174,11 +175,26 @@ class blurcast:
 
         f.close()
 
+    def mark_story_read(self, feed_id, story_id):
+        r = requests.post("%s/reader/mark_story_as_read" % BASE_URL,
+                          params={'feed_id': feed_id, 'story_id': story_id},
+                          cookies=self.cookies)
+        print "%s marked read...\n\n" % story_id
+
+
     def download_all_unread(self):
         if len(self.links)>0:
-            for link in self.links:
-                download_link(link)
+            for data in self.links:
+                feed_id = data[0]
+                story_id = data[1]
+                link = data[2]
+                self.download_link(link)
+                self.mark_story_read(feed_id, story_id)
             self.links = []
 
         else:
             print "Nothing new to download."
+
+if __name__ == "__main__":
+    podcatcher = blurcast()
+    podcatcher.get_new_podcasts()

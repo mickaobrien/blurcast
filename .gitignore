@@ -3,3 +3,6 @@
 bin
 lib
 include
+podget.py
+*.cfg
+*.pyc
