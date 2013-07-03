@@ -148,16 +148,19 @@ class blurcast:
 
             stories = f.json()['stories']
             try:
-                feed_title = f.json()['feed_title']
+                feed_title = requests.get("%s/reader/feed/%d" % (BASE_URL, pid)).json()['feed_title']
+                #feed_title = f.json()['feed_title']
             except:
                 feed_title = ""
 
             for story in stories:
                 story_title = story['story_title']
-                filename = "%s - %s" % (feed_title, story_title)
                 dl_link = pq(story['story_content'])('source').attr.src
-                story_id = story['id']
-                links.append((pid, story_id, dl_link, filename))
+                if dl_link is not None:
+                    filename = "%s - %s.%s" % (feed_title, story_title, dl_link.split(".")[-1])
+                    #print filename
+                    story_id = story['id']
+                    links.append((pid, story_id, dl_link, filename))
 
         self.links = links
         #return links
